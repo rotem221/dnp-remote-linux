@@ -1,0 +1,62 @@
+{
+  "name": "dnp-remote-linux",
+  "version": "0.1.0",
+  "description": "Linux daemon + local web UI that pairs with the DNP Remote IDE iPhone companion. Exposes Claude Code (and any PTY-driven shell) over a signed WebSocket bridge so you can drive a Linux box from your phone.",
+  "license": "MIT",
+  "author": "Rotem Dadon",
+  "homepage": "https://github.com/rotem221/dnp-remote-linux#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/rotem221/dnp-remote-linux.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rotem221/dnp-remote-linux/issues"
+  },
+  "keywords": [
+    "claude",
+    "claude-code",
+    "remote",
+    "iphone",
+    "ios",
+    "ipad",
+    "pairing",
+    "pty",
+    "websocket",
+    "bridge",
+    "qr",
+    "ed25519"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "dnp-remote": "bin/dnp-remote.cjs"
+  },
+  "main": "dist/index.js",
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc -w",
+    "start": "node bin/dnp-remote.cjs",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "node-pty": "^1.0.0",
+    "open": "^10.1.0",
+    "qrcode": "^1.5.3",
+    "tweetnacl": "^1.0.3",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.7.0",
+    "@types/qrcode": "^1.5.5",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.6.3"
+  }
+}
