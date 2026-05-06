@@ -8,6 +8,7 @@ import { createHTTPServer } from "./http.js";
 import { BridgeServer } from "./wsBridge.js";
 import { Dispatcher } from "./dispatcher.js";
 import { Sessions } from "./sessions.js";
+import { FilesService } from "./files.js";
 import { issuePairingTokens, PairingTokens } from "./pairing.js";
 import {
   Identity,
@@ -78,11 +79,13 @@ export async function startDaemon(opts: DaemonOptions): Promise<DaemonHandle> {
     onDisconnect: (id) => dispatcherRef?.onConnectionDropped(id),
   });
 
+  const files = new FilesService(opts.projectRoot);
   const dispatcher = new Dispatcher(bridge, {
     identity: () => identity,
     setIdentity: (next) => { identity = next; saveIdentity(next); },
     pairingTokens: () => tokens,
     sessions,
+    files,
     onPairedDevicesChanged: () => { /* UI polls /api/state */ },
     endpointURL: () => bridgeEndpoint,
   });

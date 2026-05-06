@@ -219,6 +219,79 @@ export interface UserPromptPayload {
   attachments: unknown[];
 }
 
+// ---------- File explorer ----------
+
+export interface DirectoryEntry {
+  name: string;
+  isDirectory: boolean;
+  sizeBytes: number;
+}
+
+export interface DirectoryListingRequestPayload {
+  requestId: string;
+  relativePath: string;
+}
+
+export interface DirectoryListingResponsePayload {
+  requestId: string;
+  relativePath: string;
+  entries: DirectoryEntry[];
+  error: string | null;
+}
+
+export interface FileContentRequestPayload {
+  requestId: string;
+  relativePath: string;
+  maxBytes: number;
+}
+
+export interface FileContentResponsePayload {
+  requestId: string;
+  relativePath: string;
+  mimeType: string;
+  utf8Text: string | null;
+  /** Base64-encoded raw bytes. Set when the file failed UTF-8 decode. */
+  binary: string | null;
+  truncated: boolean;
+  error: string | null;
+}
+
+export interface FileWriteRequestPayload {
+  requestId: string;
+  path: string;
+  utf8Text: string;
+}
+
+export interface FileWriteResponsePayload {
+  requestId: string;
+  path: string;
+  success: boolean;
+  error: string | null;
+}
+
+export interface FileSearchHit {
+  path: string;
+  isDirectory: boolean;
+  lineNumber: number | null;
+  snippet: string | null;
+}
+
+export interface FileSearchRequestPayload {
+  requestId: string;
+  rootPath: string;
+  query: string;
+  maxResults: number;
+  searchContent: boolean;
+}
+
+export interface FileSearchResponsePayload {
+  requestId: string;
+  query: string;
+  hits: FileSearchHit[];
+  truncated: boolean;
+  error: string | null;
+}
+
 // ---------- ProjectInfo ----------
 
 export interface ProjectInfoPayload {

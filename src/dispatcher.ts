@@ -19,6 +19,10 @@ import {
   LiveEventPayload,
   EventBatchPayload,
   SessionEvent,
+  DirectoryListingRequestPayload,
+  FileContentRequestPayload,
+  FileWriteRequestPayload,
+  FileSearchRequestPayload,
   PROTOCOL_VERSION,
   MAX_CLOCK_SKEW_SECONDS,
   canonicalJSONStringify,
@@ -38,12 +42,14 @@ import {
 import { NonceCache } from "./nonce.js";
 import { PairingTokens } from "./pairing.js";
 import { Sessions } from "./sessions.js";
+import { FilesService } from "./files.js";
 
 export interface DispatcherCallbacks {
   identity: () => Identity;
   setIdentity: (next: Identity) => void;
   pairingTokens: () => PairingTokens;
   sessions: Sessions;
+  files: FilesService;
   onPairedDevicesChanged: () => void;
   /** Endpoint the iPhone reaches us on, e.g. `tcp://192.168.0.5:18733`.
    *  We echo it back in `pairingResponse` so the iPhone can
@@ -109,6 +115,52 @@ export class Dispatcher {
         this.requireSignedThen(env, conn, () => {
           const p = env.payload as UserPromptPayload;
           this.cb.sessions.sendPrompt(p.sessionId, p.text);
+        });
+        break;
+      case "directoryListingRequest":
+        this.requireSignedThen(env, conn, () => {
+          const p = env.payload as DirectoryListingRequestPayload;
+          void this.cb.files
+            .listDirectory({ requestId: p.requestId, relativePath: p.relativePath })
+            .then((resp) => this.sendSigned(conn, "directoryListingResponse", null, resp));
+        });
+        break;
+      case "fileContentRequest":
+        this.requireSignedThen(env, conn, () => {
+          const p = env.payload as FileContentRequestPayload;
+          void this.cb.files
+            .readFile({
+              requestId: p.requestId,
+              relativePath: p.relativePath,
+              maxBytes: p.maxBytes,
+            })
+            .then((resp) => this.sendSigned(conn, "fileContentResponse", null, resp));
+        });
+        break;
+      case "fileWriteRequest":
+        this.requireSignedThen(env, conn, () => {
+          const p = env.payload as FileWriteRequestPayload;
+          void this.cb.files
+            .writeFile({
+              requestId: p.requestId,
+              path: p.path,
+              utf8Text: p.utf8Text,
+            })
+            .then((resp) => this.sendSigned(conn, "fileWriteResponse", null, resp));
+        });
+        break;
+      case "fileSearchRequest":
+        this.requireSignedThen(env, conn, () => {
+          const p = env.payload as FileSearchRequestPayload;
+          void this.cb.files
+            .search({
+              requestId: p.requestId,
+              rootPath: p.rootPath,
+              query: p.query,
+              maxResults: p.maxResults,
+              searchContent: p.searchContent,
+            })
+            .then((resp) => this.sendSigned(conn, "fileSearchResponse", null, resp));
         });
         break;
       default:
