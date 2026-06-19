@@ -1,6 +1,6 @@
 {
   "name": "dnp-remote-linux",
-  "version": "0.1.0",
+  "version": "0.7.0",
   "description": "Linux daemon + local web UI that pairs with the DNP Remote IDE iPhone companion. Exposes Claude Code (and any PTY-driven shell) over a signed WebSocket bridge so you can drive a Linux box from your phone.",
   "license": "MIT",
   "author": "Rotem Dadon",
@@ -50,13 +50,11 @@
     "node-pty": "^1.0.0",
     "open": "^10.1.0",
     "qrcode": "^1.5.3",
-    "tweetnacl": "^1.0.3",
-    "ws": "^8.18.0"
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/node": "^22.7.0",
     "@types/qrcode": "^1.5.5",
-    "@types/ws": "^8.5.13",
     "typescript": "^5.6.3"
   }
 }

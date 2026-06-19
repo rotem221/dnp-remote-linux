@@ -107,11 +107,20 @@ export interface PairingRequestPayload {
 
 export interface PairingResponsePayload {
   accepted: boolean;
-  /** Mac-side device id. iPhone stores this and uses it as the recipientId on subsequent envelopes. */
-  serverDeviceId: string;
-  serverPublicKey: string; // base64
+  /** Server-side device id. Field name is historical (`mac…`) — the
+   *  Swift `PairingResponse` model is shared with the macOS host and
+   *  predates Linux support, so the same names are reused here so the
+   *  signed envelope round-trips byte-for-byte through the iPhone's
+   *  decoder. */
+  macDeviceId: string;
+  macName: string;
+  macPublicKey: string; // base64 — Swift decodes Data via base64 by default
+  issuedAt: string;     // ISO-8601 with fractional seconds (matches `formatDate`)
   serverEndpoint: string; // tcp://host:port
   denialReason?: string | null;
+  /** Tells the iPhone what kind of host it just paired with so the UI
+   *  can pick a per-platform icon and label. */
+  platform: DevicePlatform;
 }
 
 // ---------- Sessions ----------

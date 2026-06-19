@@ -263,10 +263,13 @@ export class Dispatcher {
     const id = this.cb.identity();
     const payload: PairingResponsePayload = {
       accepted,
-      serverDeviceId: id.deviceId,
-      serverPublicKey: id.publicKey,
+      macDeviceId: id.deviceId,
+      macName: id.deviceName,
+      macPublicKey: id.publicKey,
+      issuedAt: formatDate(),
       serverEndpoint: this.cb.endpointURL(),
       denialReason: denialReason ?? null,
+      platform: "linux",
     };
     this.sendSigned(conn, "pairingResponse", null, payload);
   }
@@ -390,6 +393,18 @@ export class Dispatcher {
   /** Called by `BridgeServer.onDisconnect` to forget the connection. */
   onConnectionDropped(connId: string): void {
     this.deviceForConn.delete(connId);
+  }
+
+  /** Drop every live bridge connection that the given device owns.
+   *  Used by the web UI's "Revoke" button so the iPhone can't keep
+   *  pushing frames after the user has explicitly un-trusted it. */
+  dropConnectionsForDevice(deviceId: string): void {
+    for (const [connId, devId] of this.deviceForConn) {
+      if (devId === deviceId) {
+        try { this.bridge.drop(connId); } catch { /* ignore */ }
+        this.deviceForConn.delete(connId);
+      }
+    }
   }
 }
 

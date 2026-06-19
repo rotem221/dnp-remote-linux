@@ -19,6 +19,7 @@ import {
   SessionEvent,
   SessionStatus,
 } from "./protocol.js";
+import { loadClaudeOAuthToken } from "./keys.js";
 
 export interface SessionsOptions {
   /** Command to launch in each new session. Defaults to `claude` so
@@ -47,6 +48,10 @@ interface SessionRecord {
    *  swamp the iPhone with one envelope per character. */
   bufferedRaw: { text: string; firstAt: Date } | null;
   flushTimer: NodeJS.Timeout | null;
+  /** Latched once we've already surfaced the "claude not logged in"
+   *  warning to the iPhone so we don't spam the feed with the same
+   *  banner every time it repaints. */
+  claudeNotLoggedInSurfaced: boolean;
 }
 
 const FEED_RING = 500;
@@ -70,7 +75,21 @@ export class Sessions {
     const [cmd, ...cmdArgs] = parseCommand(this.opts.defaultCommand);
     const cols = 120;
     const rows = 36;
-    const env = { ...process.env, TERM: "xterm-256color" };
+    // Inject the persisted OAuth token (set via the daemon's web UI sign-in
+    // flow) so a freshly-installed `dnpremote` user can drive `claude`
+    // without ever logging in via SSH. Per docs auth precedence #5, this
+    // takes effect when nothing higher is configured (no
+    // ANTHROPIC_API_KEY, no apiKeyHelper). If `process.env` already
+    // carries `CLAUDE_CODE_OAUTH_TOKEN` (set by the auth completion path
+    // mid-process), the disk read is a no-op fallback.
+    const oauth = process.env.CLAUDE_CODE_OAUTH_TOKEN
+      ?? loadClaudeOAuthToken()
+      ?? undefined;
+    const env: NodeJS.ProcessEnv = {
+      ...process.env,
+      TERM: "xterm-256color",
+      ...(oauth ? { CLAUDE_CODE_OAUTH_TOKEN: oauth } : {}),
+    };
     const pty = nodePty.spawn(cmd, cmdArgs, {
       name: "xterm-256color",
       cols,
@@ -100,6 +119,7 @@ export class Sessions {
       sequence: 0,
       bufferedRaw: null,
       flushTimer: null,
+      claudeNotLoggedInSurfaced: false,
     };
     this.records.set(id, record);
 
@@ -160,6 +180,22 @@ export class Sessions {
     }
     if (record.flushTimer) return;
     record.flushTimer = setTimeout(() => this.flushRaw(record), FLUSH_MS);
+    // Sniff once per session for the Claude "Not logged in" banner. The
+    // raw chunk is a great place to do this — claude prints the banner
+    // straight to stdout on first run when no creds are stored, and the
+    // iPhone otherwise just sees an empty TUI with no actionable
+    // explanation. Emitting a structured `warning` SessionEvent makes the
+    // iOS feed render an actual error card instead of leaving the user
+    // staring at a hung session.
+    if (!record.claudeNotLoggedInSurfaced) {
+      const text = (record.bufferedRaw?.text ?? "") + chunk;
+      if (/not logged in|please run \/login/i.test(text)) {
+        record.claudeNotLoggedInSurfaced = true;
+        this.appendSyntheticWarning(record,
+          "Claude is not logged in on this Linux box",
+          "SSH in and run `sudo -u dnpremote -H claude /login` once. Tokens are stored per system user, so a fresh user has to authenticate before sessions will respond.");
+      }
+    }
   }
 
   private flushRaw(record: SessionRecord): void {
@@ -202,6 +238,31 @@ export class Sessions {
       title,
       createdAt: formatDate(),
       sequence: record.sequence,
+    };
+    pushFeed(record, ev);
+    this.opts.onLiveEvent(ev);
+  }
+
+  /** Emit a `warning`-severity event with a `message`-shaped payload —
+   *  what the iOS feed renders as a yellow card with title + body. The
+   *  raw event type stays `"warning"` so the Mac normaliser path on
+   *  iPhone treats it identically whether the warning came from the
+   *  Mac or this Linux daemon. */
+  private appendSyntheticWarning(
+    record: SessionRecord,
+    title: string,
+    body: string,
+  ): void {
+    record.sequence += 1;
+    const ev: SessionEvent = {
+      id: newUUID(),
+      sessionId: record.session.id,
+      type: "warning",
+      severity: "warning",
+      title,
+      createdAt: formatDate(),
+      sequence: record.sequence,
+      payload: { kind: "message", value: { text: body } },
     };
     pushFeed(record, ev);
     this.opts.onLiveEvent(ev);

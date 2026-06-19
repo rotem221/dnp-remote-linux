@@ -36,16 +36,43 @@ export function issuePairingTokens(): PairingTokens {
 }
 
 /** Build the JSON payload encoded into the pairing QR. The iPhone
- *  decodes it, extracts the endpoint + token, and sends a
- *  `pairingRequest`. Field names (`e`, `t`, `c`) match the Mac so the
- *  same scanner code on iPhone reads either daemon. */
+ *  decodes it, extracts the endpoint + token + server identity, and
+ *  sends a `pairingRequest`. Field names match the Mac's QR so the
+ *  same `ScannedPairing.fromJSON` scanner on iPhone reads either
+ *  daemon without a per-platform code path:
+ *
+ *    v   protocol version (always 1 today)
+ *    t   pairing token (32-char base64url)
+ *    c   6-digit human-readable code
+ *    e   primary bridge endpoint, e.g. `tcp://host:18733`
+ *    id  server device UUID (matches `PairingResponse.macDeviceId`)
+ *    n   server display name shown in the iOS device list
+ *    k   server Ed25519 public key (base64) — iPhone trust-pins this
+ *    te  optional Tailscale fallback endpoint (omitted today; the
+ *        Linux daemon already accepts a `--host` flag with a tailnet
+ *        hostname so the primary endpoint usually IS the tailnet one)
+ */
 export function pairingQRPayload(args: {
   endpoint: string;
+  /** Optional secondary endpoint shipped as `te`. iPhone falls back to it
+   *  when the primary `e` can't be reached within the watchdog window. */
+  tailscaleEndpoint?: string | null;
   tokens: PairingTokens;
+  serverDeviceId: string;
+  serverDeviceName: string;
+  serverPublicKey: string; // base64
 }): string {
-  return JSON.stringify({
-    e: args.endpoint,
+  const obj: Record<string, unknown> = {
+    v: 1,
     t: args.tokens.token,
     c: args.tokens.humanCode,
-  });
+    e: args.endpoint,
+    id: args.serverDeviceId,
+    n: args.serverDeviceName,
+    k: args.serverPublicKey,
+  };
+  if (args.tailscaleEndpoint && args.tailscaleEndpoint.length > 0) {
+    obj.te = args.tailscaleEndpoint;
+  }
+  return JSON.stringify(obj);
 }
